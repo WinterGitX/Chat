@@ -71,7 +71,7 @@ public class ClientGUI extends JFrame {
                     SwingUtilities.invokeLater(() -> chatArea.append("Server: " + message + "\n"));
                 }
             } catch (IOException e) {
-                SwingUtilities.invokeLater(() -> textArea.append("Waiting for connection with the server...\n"));
+                SwingUtilities.invokeLater(() -> textArea.append("In attesa della connessione con il server...\n"));
                 // Retry connection or handle failed connection attempt
             }
         }).start();
