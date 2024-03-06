@@ -1,3 +1,5 @@
+// Importazione dei pacchetti necessari per la creazione dell'interfaccia grafica, la gestione degli eventi,
+// la lettura/scrittura di flussi di dati e la gestione delle connessioni di rete.
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -7,100 +9,112 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
 
+// Definizione della classe ClientGUI, che estende JFrame per creare la finestra dell'applicazione.
 public class ClientGUI extends JFrame {
-    private JTextArea textArea; // Area for notifications and server messages
-    private JTextArea chatArea; // Area for chat messages
-    private JTextField chatInput; // Input field for chat
-    private JButton toggleConnectionButton; // Button to toggle connection state
-    private Socket socket;
-    private PrintWriter out;
+    // Dichiarazione delle componenti dell'interfaccia grafica: aree di testo, campo di input e bottone.
+    private JTextArea textArea; // Area per le notifiche e i messaggi del server.
+    private JTextArea chatArea; // Area per i messaggi della chat.
+    private JTextField chatInput; // Campo di input per scrivere messaggi nella chat.
+    private JButton toggleConnectionButton; // Bottone per connettersi o disconnettersi dal server.
+    private Socket socket; // Socket per la connessione al server.
+    private PrintWriter out; // Flusso di output per inviare messaggi al server.
 
+    // Costruttore della classe ClientGUI.
     public ClientGUI() {
-        super("ClientGUI");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(800, 600);
-        setLocationRelativeTo(null);
+        super("ClientGUI"); // Imposta il titolo della finestra.
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // Imposta l'operazione di chiusura di default.
+        setSize(800, 600); // Imposta le dimensioni della finestra.
+        setLocationRelativeTo(null); // Centra la finestra nello schermo.
 
+        // Inizializzazione delle aree di testo e configurazione per renderle non modificabili.
         textArea = new JTextArea();
         textArea.setEditable(false);
-
         chatArea = new JTextArea();
         chatArea.setEditable(false);
 
+        // Creazione di un JSplitPane per dividere la finestra in due aree di testo separate.
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(textArea), new JScrollPane(chatArea));
-        splitPane.setDividerLocation(400);
-        add(splitPane, BorderLayout.CENTER);
+        splitPane.setDividerLocation(400); // Imposta la posizione del divisore.
+        add(splitPane, BorderLayout.CENTER); // Aggiunge il JSplitPane al frame.
 
+        // Inizializzazione del campo di input per i messaggi e configurazione dell'azione da eseguire all'invio.
         chatInput = new JTextField();
         chatInput.addActionListener(this::sendChatMessage);
 
-        toggleConnectionButton = new JButton("Connect");
+        // Inizializzazione e configurazione del bottone per la connessione.
+        toggleConnectionButton = new JButton("Connetti");
         toggleConnectionButton.addActionListener(e -> toggleConnection());
 
+        // Creazione di un pannello inferiore che include il campo di input e il bottone.
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.add(chatInput, BorderLayout.CENTER);
         bottomPanel.add(toggleConnectionButton, BorderLayout.EAST);
+        add(bottomPanel, BorderLayout.SOUTH); // Aggiunge il pannello inferiore al frame.
 
-        add(bottomPanel, BorderLayout.SOUTH);
-
-        setVisible(true);
+        setVisible(true); // Rende visibile la finestra.
     }
 
+    // Metodo per gestire il cambio di stato della connessione.
     private void toggleConnection() {
         if (socket == null || socket.isClosed()) {
-            connectToServer("localhost", 12345);
+            connectToServer("localhost", 12345); // Tenta di connettersi al server se non già connesso.
         } else {
-            disconnect();
+            disconnect(); // Disconnette dal server se già connesso.
         }
     }
 
+    // Metodo per connettersi al server.
     private void connectToServer(String serverAddress, int port) {
-        new Thread(() -> {
+        new Thread(() -> { // Utilizza un thread separato per non bloccare l'interfaccia grafica.
             try {
-                socket = new Socket(serverAddress, port);
+                socket = new Socket(serverAddress, port); // Crea una nuova connessione al server.
                 SwingUtilities.invokeLater(() -> {
-                    textArea.append("Connected to Server\n");
-                    toggleConnectionButton.setText("Disconnect");
+                    textArea.append("Connesso al Server\n"); // Mostra una notifica di connessione riuscita.
+                    toggleConnectionButton.setText("Disconnettiti"); // Cambia il testo del bottone.
                 });
-                out = new PrintWriter(socket.getOutputStream(), true);
+                out = new PrintWriter(socket.getOutputStream(), true); // Inizializza il flusso di output.
 
+                // Legge i messaggi in arrivo dal server.
                 BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 String fromServer;
-                while ((fromServer = in.readLine()) != null) {
+                while ((fromServer = in.readLine()) != null) { // Continua a leggere finché ci sono messaggi.
                     String message = fromServer;
-                    SwingUtilities.invokeLater(() -> chatArea.append("Server: " + message + "\n"));
+                    SwingUtilities.invokeLater(() -> chatArea.append("Server: " + message + "\n")); // Mostra i messaggi nella chatArea.
                 }
             } catch (IOException e) {
+                // Mostra un messaggio di attesa se la connessione fallisce.
                 SwingUtilities.invokeLater(() -> textArea.append("In attesa della connessione con il server...\n"));
-                // Retry connection or handle failed connection attempt
             }
-        }).start();
+        }).start(); // Avvia il thread.
     }
 
+    // Metodo per inviare messaggi al server attraverso il campo di input della chat.
     private void sendChatMessage(ActionEvent event) {
-        String message = chatInput.getText();
+        String message = chatInput.getText(); // Ottiene il testo dal campo di input.
         if (!message.isEmpty() && out != null) {
-            out.println(message);
-            chatArea.append("You: " + message + "\n");
-            chatInput.setText("");
+            out.println(message); // Invia il messaggio al server.
+            chatArea.append("Tu: " + message + "\n"); // Mostra il messaggio inviato nella chatArea.
+            chatInput.setText(""); // Pulisce il campo di input dopo l'invio.
         }
     }
 
+    // Metodo per disconnettersi dal server.
     private void disconnect() {
         try {
             if (socket != null) {
-                socket.close();
+                socket.close(); // Chiude la connessione.
                 SwingUtilities.invokeLater(() -> {
-                    textArea.append("Disconnected from Server\n");
-                    toggleConnectionButton.setText("Connect");
+                    textArea.append("Disconnesso dal Server\n"); // Mostra una notifica di disconnessione.
+                    toggleConnectionButton.setText("Connettiti"); // Cambia il testo del bottone.
                 });
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            e.printStackTrace(); // Stampa l'errore se qualcosa va storto durante la disconnessione.
         }
     }
 
+    // Metodo principale per eseguire l'applicazione.
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(ClientGUI::new);
+        SwingUtilities.invokeLater(ClientGUI::new); // Avvia l'interfaccia grafica del client nell'Event Dispatch Thread.
     }
 }
