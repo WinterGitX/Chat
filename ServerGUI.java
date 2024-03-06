@@ -68,7 +68,7 @@ public class ServerGUI extends JFrame {
                 }
             } catch (IOException e) {
                 e.printStackTrace(); // Gestione delle eccezioni.
-                textArea.append("Server errore: " + e.getMessage() + "\n"); // Log dell'errore.
+                textArea.append("Server info: " + e.getMessage() + "\n"); // Log dell'errore.
             }
         }).start(); // Avvia il thread.
     }
@@ -78,7 +78,7 @@ public class ServerGUI extends JFrame {
         try {
             if (serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close(); // Chiude il ServerSocket, terminando il ciclo di accettazione delle connessioni.
-                textArea.append("Server chiusura.\n"); // Log di chiusura server.
+                textArea.append("Chiusura Server.\n"); // Log di chiusura server.
             }
         } catch (IOException e) {
             e.printStackTrace(); // Gestione delle eccezioni in caso di errore durante la chiusura.
