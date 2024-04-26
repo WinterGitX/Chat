@@ -27,9 +27,15 @@ public class ServerGUI extends JFrame { // Crea una classe che estende JFrame pe
         chatArea = new JTextArea(); // Inizializza l'area di testo per la chat.
         chatArea.setEditable(false); // Rende l'area di testo non modificabile.
 
+<<<<<<< HEAD
+        // Creazione e configurazione di un JSplitPane per dividere la finestra in due aree di testo.
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(textArea), new JScrollPane(chatArea));
+        splitPane.setDividerLocation(200); // Posizione del divisore tra le due aree.
+=======
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(textArea), new JScrollPane(chatArea)); // Crea un pannello diviso per contenere i due JTextArea.
         splitPane.setDividerLocation(200); // Imposta la posizione del divisore.
         add(splitPane, BorderLayout.CENTER); // Aggiunge il pannello diviso al frame centrale.
+>>>>>>> 6243587b21e200f2b0eece4f59a6d4ba48da4b8b
 
         JPanel bottomPanel = new JPanel(new BorderLayout()); // Crea un pannello per gli elementi inferiori.
         chatInput = new JTextField(); // Crea il campo di testo per l'input della chat.
