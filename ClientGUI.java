@@ -1,13 +1,13 @@
 // Importazione dei pacchetti necessari per la creazione dell'interfaccia grafica, la gestione degli eventi,
 // la lettura/scrittura di flussi di dati e la gestione delle connessioni di rete.
-import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.Socket;
+import javax.swing.*; // Importa le classi per l'interfaccia grafica Swing.
+import java.awt.*; // Importa classi per utilizzare componenti dell'interfaccia grafica.
+import java.awt.event.ActionEvent; // Importa le classi per la gestione degli eventi su componenti GUI.
+import java.io.BufferedReader; // Importa la classe per la lettura bufferizzata di stream di input.
+import java.io.IOException; // Importa la classe per la gestione delle eccezioni di I/O.
+import java.io.InputStreamReader; // Importa la classe per convertire un byte stream in un character stream.
+import java.io.PrintWriter; // Importa la classe per stampare formati di testo.
+import java.net.Socket; // Importa la classe per la creazione di socket.
 
 // Definizione della classe ClientGUI, che estende JFrame per creare la finestra dell'applicazione.
 public class ClientGUI extends JFrame {
