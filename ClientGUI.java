@@ -34,7 +34,7 @@ public class ClientGUI extends JFrame {
 
         // Creazione di un JSplitPane per dividere la finestra in due aree di testo separate.
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(textArea), new JScrollPane(chatArea));
-        splitPane.setDividerLocation(400); // Imposta la posizione del divisore.
+        splitPane.setDividerLocation(250); // Imposta la posizione del divisore.
         add(splitPane, BorderLayout.CENTER); // Aggiunge il JSplitPane al frame.
 
         // Inizializzazione del campo di input per i messaggi e configurazione dell'azione da eseguire all'invio.
