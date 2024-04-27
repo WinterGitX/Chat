@@ -7,135 +7,135 @@ import java.net.ServerSocket; // Importa la classe ServerSocket per ascoltare le
 import java.net.Socket; // Importa la classe Socket per rappresentare una connessione tra il server e il client.
 import java.util.concurrent.CopyOnWriteArrayList; // Importa la classe per una lista thread-safe che crea una copia del contenuto ad ogni modifica.
 
-public class ServerGUI extends JFrame { // Crea una classe che estende JFrame per l'interfaccia grafica del server.
-    private JTextArea textArea; // Area di testo per visualizzare informazioni di sistema e log.
-    private JTextArea chatArea; // Area di testo dedicata alla chat tra client e server.
-    private JTextField chatInput; // Campo di input per scrivere messaggi nella chat.
-    private JButton toggleButton; // Pulsante per avviare/fermare il server.
-    private boolean isRunning; // Flag per tenere traccia dello stato del server (in esecuzione o meno).
-    private ServerSocket serverSocket; // Socket del server per ascoltare le connessioni in entrata.
-    private CopyOnWriteArrayList<ClientHandler> clientHandlers = new CopyOnWriteArrayList<>(); // Lista di gestori client, thread-safe.
+// Definizione della classe ServerGUI che estende JFrame per creare l'interfaccia grafica del server.
+public class ServerGUI extends JFrame {
+    private JTextArea textArea; // Area di testo per visualizzare i log di sistema e le informazioni.
+    private JTextArea chatArea; // Area di testo per la chat tra client e server.
+    private JTextField chatInput; // Campo di testo per inserire messaggi da inviare ai client.
+    private JButton toggleButton; // Pulsante per avviare o fermare il server.
+    private boolean isRunning; // Variabile di controllo dello stato del server.
+    private ServerSocket serverSocket; // Server socket per accettare connessioni.
+    private CopyOnWriteArrayList<ClientHandler> clientHandlers = new CopyOnWriteArrayList<>(); // Lista thread-safe di gestori client.
 
-    public ServerGUI() { // Costruttore della classe ServerGUI.
-        super("ServerGUI"); // Chiama il costruttore della superclass JFrame con il titolo "ServerGUI".
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // Imposta l'operazione di default alla chiusura della finestra (termina l'applicazione).
-        setSize(800, 600); // Imposta le dimensioni della finestra.
-        setLocationRelativeTo(null); // Posiziona la finestra al centro dello schermo.
+    public ServerGUI() {
+        super("ServerGUI"); // Imposta il titolo della finestra del JFrame.
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // Chiude l'applicazione alla chiusura della finestra.
+        setSize(800, 600); // Dimensioni della finestra.
+        setLocationRelativeTo(null); // Centra la finestra sullo schermo.
 
         textArea = new JTextArea(); // Inizializza l'area di testo per i log.
-        textArea.setEditable(false); // Rende l'area di testo non modificabile.
+        textArea.setEditable(false); // Impedisce la modifica del testo.
         chatArea = new JTextArea(); // Inizializza l'area di testo per la chat.
-        chatArea.setEditable(false); // Rende l'area di testo non modificabile.
+        chatArea.setEditable(false); // Impedisce la modifica del testo.
 
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(textArea), new JScrollPane(chatArea)); // Crea un pannello diviso per contenere i due JTextArea.
+        // Crea un pannello diviso per separare i log dalla chat.
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(textArea), new JScrollPane(chatArea));
         splitPane.setDividerLocation(200); // Imposta la posizione del divisore.
-        add(splitPane, BorderLayout.CENTER); // Aggiunge il pannello diviso al frame centrale.
+        add(splitPane, BorderLayout.CENTER); // Aggiunge il pannello diviso al frame.
 
-        JPanel bottomPanel = new JPanel(new BorderLayout()); // Crea un pannello per gli elementi inferiori.
-        chatInput = new JTextField(); // Crea il campo di testo per l'input della chat.
-        chatInput.addActionListener(e -> sendMessageToAllClients(chatInput.getText())); // Aggiunge un listener che invia il messaggio a tutti i client quando si preme Invio.
-        bottomPanel.add(chatInput, BorderLayout.CENTER); // Aggiunge il campo di input al pannello inferiore al centro.
+        // Crea un pannello per gli elementi di input e controllo.
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        chatInput = new JTextField();
+        chatInput.addActionListener(e -> sendMessageToAllClients(chatInput.getText())); // Aggiunge un listener per inviare messaggi.
+        bottomPanel.add(chatInput, BorderLayout.CENTER);
 
-        toggleButton = new JButton("Avvia Server"); // Crea il pulsante con il testo "Avvia Server".
-        toggleButton.addActionListener(e -> toggleServer()); // Aggiunge un listener che avvia o ferma il server quando il pulsante viene premuto.
-        bottomPanel.add(toggleButton, BorderLayout.EAST); // Aggiunge il pulsante al pannello inferiore a est.
+        toggleButton = new JButton("Avvia Server"); // Pulsante per avviare il server.
+        toggleButton.addActionListener(e -> toggleServer()); // Listener per gestire l'attivazione del server.
+        bottomPanel.add(toggleButton, BorderLayout.EAST);
 
-        add(bottomPanel, BorderLayout.SOUTH); // Aggiunge il pannello inferiore alla parte sud del frame.
+        add(bottomPanel, BorderLayout.SOUTH); // Aggiunge il pannello inferiore al frame.
 
-        setVisible(true); // Rende il frame visibile.
+        setVisible(true); // Rende visibile la finestra.
     }
 
-    private void toggleServer() { // Metodo per avviare o fermare il server.
-        if (!isRunning) { // Controlla se il server non è attualmente in esecuzione.
-            startServer(12345); // Avvia il server sulla porta 12345.
-            toggleButton.setText("Ferma Server"); // Cambia il testo del pulsante in "Ferma Server".
-            isRunning = true; // Imposta il flag di esecuzione a vero.
-        } else { // Se il server è già in esecuzione.
+    private void toggleServer() {
+        if (!isRunning) {
+            startServer(12345); // Avvia il server su una porta specifica.
+            toggleButton.setText("Ferma Server");
+            isRunning = true;
+        } else {
             stopServer(); // Ferma il server.
-            toggleButton.setText("Avvia Server"); // Cambia il testo del pulsante in "Avvia Server".
-            isRunning = false; // Imposta il flag di esecuzione a falso.
+            toggleButton.setText("Avvia Server");
+            isRunning = false;
         }
     }
 
-    private void startServer(int port) { // Metodo per avviare il server su una porta specifica.
+    private void startServer(int port) {
         try {
-            serverSocket = new ServerSocket(port); // Crea un nuovo ServerSocket sulla porta specificata.
-            textArea.append("Server connesso sulla porta " + port + "\n"); // Logga la connessione del server.
-            new Thread(() -> { // Crea un nuovo thread per gestire le connessioni in entrata.
+            serverSocket = new ServerSocket(port);
+            textArea.append("Server connesso sulla porta " + port + "\n");
+            new Thread(() -> {
                 try {
-                    while (!serverSocket.isClosed()) { // Continua a ciclare finché il ServerSocket non è chiuso.
-                        Socket socket = serverSocket.accept(); // Accetta una connessione in entrata.
-                        textArea.append("Client connesso: " + socket.getInetAddress().getHostAddress() + "\n"); // Logga l'indirizzo del client connesso.
-                        ClientHandler handler = new ClientHandler(socket); // Crea un nuovo gestore per il client.
-                        clientHandlers.add(handler); // Aggiunge il gestore alla lista di gestori.
-                        handler.start(); // Avvia il thread del gestore.
+                    while (!serverSocket.isClosed()) {
+                        Socket socket = serverSocket.accept();
+                        textArea.append("Client connesso: " + socket.getInetAddress().getHostAddress() + "\n");
+                        ClientHandler handler = new ClientHandler(socket);
+                        clientHandlers.add(handler);
+                        handler.start();
                     }
                 } catch (IOException e) {
-                    textArea.append("Server interrotto.\n"); // Logga l'interruzione del server.
+                    textArea.append("Server interrotto.\n");
                 }
-            }).start(); // Avvia il thread.
+            }).start();
         } catch (IOException e) {
-            textArea.append("Non è possibile avviare il server: " + e.getMessage() + "\n"); // Logga l'errore se il server non può essere avviato.
+            textArea.append("Non è possibile avviare il server: " + e.getMessage() + "\n");
         }
     }
 
-    private void stopServer() { // Metodo per fermare il server.
+    private void stopServer() {
         try {
-            if (serverSocket != null && !serverSocket.isClosed()) { // Controlla se il ServerSocket esiste ed è aperto.
-                serverSocket.close(); // Chiude il ServerSocket.
-                textArea.append("Server fermato.\n"); // Logga la fermata del server.
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+                textArea.append("Server fermato.\n");
             }
         } catch (IOException e) {
-            textArea.append("Errore durante la fermata del server: " + e.getMessage() + "\n"); // Logga gli errori durante la fermata del server.
+            textArea.append("Errore durante la fermata del server: " + e.getMessage() + "\n");
         }
     }
 
-    private void sendMessageToAllClients(String message) { // Metodo per inviare un messaggio a tutti i client connessi.
-        for (ClientHandler handler : clientHandlers) { // Itera su tutti i gestori client.
-            handler.sendMessage(message); // Invia il messaggio tramite il gestore.
-        }
-        chatArea.append("Server: " + message + "\n"); // Aggiunge il messaggio inviato nell'area di chat del server.
-        chatInput.setText(""); // Pulisce il campo di input della chat.
+    private void sendMessageToAllClients(String message) {
+        clientHandlers.forEach(handler -> handler.sendMessage(message));
+        chatArea.append("Server: " + message + "\n");
+        chatInput.setText("");
     }
 
-    private class ClientHandler extends Thread { // Classe interna per gestire ogni connessione client.
-        private Socket socket; // Socket per la connessione con il client.
-        private PrintWriter out; // Flusso per inviare dati al client.
+    private class ClientHandler extends Thread {
+        private Socket socket;
+        private PrintWriter out;
 
-        public ClientHandler(Socket socket) { // Costruttore del gestore client.
-            this.socket = socket; // Imposta il socket ricevuto come socket di connessione.
+        public ClientHandler(Socket socket) {
+            this.socket = socket;
             try {
-                out = new PrintWriter(socket.getOutputStream(), true); // Inizializza il flusso di uscita con il flusso di output del socket.
+                out = new PrintWriter(socket.getOutputStream(), true);
             } catch (IOException e) {
-                e.printStackTrace(); // Stampa lo stack trace se c'è un errore durante l'inizializzazione del flusso.
+                e.printStackTrace();
             }
         }
 
-        public void sendMessage(String message) { // Metodo per inviare un messaggio al client.
-            out.println(message); // Scrive il messaggio nel flusso di uscita.
+        public void sendMessage(String message) {
+            out.println(message);
         }
 
-        public void run() { // Metodo eseguito quando il thread viene avviato.
-            try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) { // Crea un BufferedReader per leggere i dati in entrata dal socket.
+        public void run() {
+            try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
                 String inputLine;
-                while ((inputLine = in.readLine()) != null) { // Continua a leggere finché ci sono dati.
-                    chatArea.append(socket.getInetAddress().getHostAddress() + ": " + inputLine + "\n"); // Aggiunge i messaggi ricevuti nell'area di chat.
-                    out.println("Server: " + inputLine); // Optional: Echo the message back to the client.
+                while ((inputLine = in.readLine()) != null) {
+                    chatArea.append(socket.getInetAddress().getHostAddress() + ": " + inputLine + "\n");
                 }
             } catch (IOException e) {
-                System.out.println("Client disconnected."); // Stampa a console che il client è disconnesso.
+                System.out.println("Client disconnected.");
             } finally {
                 try {
-                    socket.close(); // Chiude il socket.
-                    clientHandlers.remove(this); // Rimuove il gestore dalla lista dei gestori.
+                    socket.close();
+                    clientHandlers.remove(this);
                 } catch (IOException e) {
-                    e.printStackTrace(); // Stampa lo stack trace se c'è un errore durante la chiusura del socket.
+                    e.printStackTrace();
                 }
             }
         }
     }
 
-    public static void main(String[] args) { // Metodo principale per eseguire il server.
-        SwingUtilities.invokeLater(ServerGUI::new); // Invoca il costruttore di ServerGUI nel thread di dispatching degli eventi di Swing.
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(ServerGUI::new);
     }
 }
