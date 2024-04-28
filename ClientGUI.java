@@ -136,16 +136,16 @@ public class ClientGUI extends JFrame {
             String message = parts[2]; // Il messaggio da cifrare o decifrare.
 
             switch (command.toLowerCase()) {
-                case "/ce":
+                case "/cesare":
                     message = encryptCaesar(message, Integer.parseInt(key));
                     break;
-                case "/vi":
+                case "/vigenere":
                     message = encryptVigenere(message, key);
                     break;
-                case "/dece":
+                case "/decesare":
                     message = decryptCaesar(message, Integer.parseInt(key));
                     break;
-                case "/devi":
+                case "/devigenere":
                     message = decryptVigenere(message, key);
                     break;
                 default:

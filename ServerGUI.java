@@ -1,84 +1,147 @@
-// Importazione dei pacchetti necessari per la creazione dell'interfaccia grafica, la gestione degli eventi,
-// la lettura/scrittura di flussi di dati e la gestione delle connessioni di rete.
-import javax.swing.*; // Importa le classi per l'interfaccia grafica Swing.
-import java.awt.*; // Importa classi per utilizzare componenti dell'interfaccia grafica.
-import java.io.*; // Importa classi per input/output, come la lettura e scrittura di flussi.
-import java.net.ServerSocket; // Importa la classe ServerSocket per ascoltare le connessioni in entrata.
-import java.net.Socket; // Importa la classe Socket per rappresentare una connessione tra il server e il client.
-import java.util.concurrent.CopyOnWriteArrayList; // Importa la classe per una lista thread-safe che crea una copia del contenuto ad ogni modifica.
+import javax.swing.*;
+import java.awt.*;
+import java.io.*;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.concurrent.CopyOnWriteArrayList;
 
-// Definizione della classe ServerGUI che estende JFrame per creare l'interfaccia grafica del server.
 public class ServerGUI extends JFrame {
-    private JTextArea textArea; // Area di testo per visualizzare i log di sistema e le informazioni.
+    private JTextArea textArea; // Area di testo per i log di sistema e le informazioni.
     private JTextArea chatArea; // Area di testo per la chat tra client e server.
     private JTextField chatInput; // Campo di testo per inserire messaggi da inviare ai client.
     private JButton toggleButton; // Pulsante per avviare o fermare il server.
-    private boolean isRunning; // Variabile di controllo dello stato del server.
+    private JComboBox<String> cryptoOptions; // Menu a tendina per selezionare il tipo di cifratura/decifratura.
+    private boolean isRunning; // Stato del server, true se in esecuzione.
     private ServerSocket serverSocket; // Server socket per accettare connessioni.
-    private CopyOnWriteArrayList<ClientHandler> clientHandlers = new CopyOnWriteArrayList<>(); // Lista thread-safe di gestori client.
+    private CopyOnWriteArrayList<ClientHandler> clientHandlers = new CopyOnWriteArrayList<>(); // Lista di gestori client.
 
     public ServerGUI() {
-        super("ServerGUI"); // Imposta il titolo della finestra del JFrame.
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // Chiude l'applicazione alla chiusura della finestra.
-        setSize(800, 600); // Dimensioni della finestra.
-        setLocationRelativeTo(null); // Centra la finestra sullo schermo.
+        super("Server GUI");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(800, 600);
+        setLocationRelativeTo(null);
+        setupComponents();
+        setVisible(true);
+    }
 
-        textArea = new JTextArea(); // Inizializza l'area di testo per i log.
-        textArea.setEditable(false); // Impedisce la modifica del testo.
-        chatArea = new JTextArea(); // Inizializza l'area di testo per la chat.
-        chatArea.setEditable(false); // Impedisce la modifica del testo.
+    private void setupComponents() {
+        textArea = new JTextArea();
+        textArea.setEditable(false);
+        chatArea = new JTextArea();
+        chatArea.setEditable(false);
 
-        // Crea un pannello diviso per separare i log dalla chat.
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(textArea), new JScrollPane(chatArea));
-        splitPane.setDividerLocation(200); // Imposta la posizione del divisore.
-        add(splitPane, BorderLayout.CENTER); // Aggiunge il pannello diviso al frame.
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                                              new JScrollPane(textArea),
+                                              new JScrollPane(chatArea));
+        splitPane.setDividerLocation(250);
+        add(splitPane, BorderLayout.CENTER);
 
-        // Crea un pannello per gli elementi di input e controllo.
         JPanel bottomPanel = new JPanel(new BorderLayout());
         chatInput = new JTextField();
-        chatInput.addActionListener(e -> sendMessageToAllClients(chatInput.getText())); // Aggiunge un listener per inviare messaggi.
         bottomPanel.add(chatInput, BorderLayout.CENTER);
 
-        toggleButton = new JButton("Avvia Server"); // Pulsante per avviare il server.
-        toggleButton.addActionListener(e -> toggleServer()); // Listener per gestire l'attivazione del server.
-        bottomPanel.add(toggleButton, BorderLayout.EAST);
+        cryptoOptions = new JComboBox<>(new String[]{"Plain Text", "Caesar Encrypt", "Caesar Decrypt", "Vigenère Encrypt", "Vigenère Decrypt"});
+        bottomPanel.add(cryptoOptions, BorderLayout.WEST);
 
-        add(bottomPanel, BorderLayout.SOUTH); // Aggiunge il pannello inferiore al frame.
+        JButton sendButton = new JButton("Send");
+        sendButton.addActionListener(e -> sendMessageToAllClients(chatInput.getText()));
+        bottomPanel.add(sendButton, BorderLayout.EAST);
 
-        setVisible(true); // Rende visibile la finestra.
+        toggleButton = new JButton("Start Server");
+        toggleButton.addActionListener(e -> toggleServer());
+        add(toggleButton, BorderLayout.NORTH);
+
+        add(bottomPanel, BorderLayout.SOUTH);
     }
 
     private void toggleServer() {
         if (!isRunning) {
-            startServer(12345); // Avvia il server su una porta specifica.
-            toggleButton.setText("Ferma Server");
+            startServer(12345);
+            toggleButton.setText("Stop Server");
             isRunning = true;
         } else {
-            stopServer(); // Ferma il server.
-            toggleButton.setText("Avvia Server");
+            stopServer();
+            toggleButton.setText("Start Server");
             isRunning = false;
         }
     }
 
+    private class ClientHandler extends Thread {
+        private Socket socket;
+        private PrintWriter out;
+        private BufferedReader in;
+    
+        public ClientHandler(Socket socket) {
+            this.socket = socket;
+            try {
+                out = new PrintWriter(socket.getOutputStream(), true);
+                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            } catch (IOException e) {
+                System.out.println("Error setting up streams: " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+    
+        @Override
+        public void run() {
+            try {
+                String inputLine;
+                while ((inputLine = in.readLine()) != null) {
+                    // Qui puoi decidere di processare i messaggi per cifrarli o decifrarli prima di inviarli agli altri client
+                    String processedMessage = processInput(inputLine);
+                    sendMessageToAllClients(processedMessage);  // Invia ai client collegati
+                    chatArea.append("Client (" + socket.getInetAddress().getHostAddress() + "): " + processedMessage + "\n");
+                }
+            } catch (IOException e) {
+                System.out.println("Error reading from client: " + e.getMessage());
+            } finally {
+                closeConnection();
+            }
+        }
+    
+        private void closeConnection() {
+            try {
+                if (out != null) out.close();
+                if (in != null) in.close();
+                if (socket != null) socket.close();
+                clientHandlers.remove(this);
+                System.out.println("Connection closed with client: " + socket.getInetAddress().getHostAddress());
+            } catch (IOException e) {
+                System.out.println("Error closing connection: " + e.getMessage());
+            }
+        }
+    
+        public void sendMessage(String message) {
+            out.println(message);
+        }
+    
+        private String processInput(String input) {
+            // Implementa qui la logica di cifratura/decifratura basata su come vuoi processare i messaggi
+            // Questo può includere il controllo di comandi specifici o altro.
+            return input;  // Per ora, semplicemente inoltra il messaggio non modificato
+        }
+    }
+    
+
     private void startServer(int port) {
         try {
             serverSocket = new ServerSocket(port);
-            textArea.append("Server connesso sulla porta " + port + "\n");
+            textArea.append("Server connected on port " + port + "\n");
             new Thread(() -> {
                 try {
                     while (!serverSocket.isClosed()) {
                         Socket socket = serverSocket.accept();
-                        textArea.append("Client connesso: " + socket.getInetAddress().getHostAddress() + "\n");
+                        textArea.append("Client connected: " + socket.getInetAddress().getHostAddress() + "\n");
                         ClientHandler handler = new ClientHandler(socket);
                         clientHandlers.add(handler);
                         handler.start();
                     }
                 } catch (IOException e) {
-                    textArea.append("Server interrotto.\n");
+                    textArea.append("Server interrupted.\n");
                 }
             }).start();
         } catch (IOException e) {
-            textArea.append("Non è possibile avviare il server: " + e.getMessage() + "\n");
+            textArea.append("Unable to start server: " + e.getMessage() + "\n");
         }
     }
 
@@ -86,53 +149,82 @@ public class ServerGUI extends JFrame {
         try {
             if (serverSocket != null && !serverSocket.isClosed()) {
                 serverSocket.close();
-                textArea.append("Server fermato.\n");
+                textArea.append("Server stopped.\n");
             }
         } catch (IOException e) {
-            textArea.append("Errore durante la fermata del server: " + e.getMessage() + "\n");
+            textArea.append("Error stopping server: " + e.getMessage() + "\n");
         }
     }
 
     private void sendMessageToAllClients(String message) {
-        clientHandlers.forEach(handler -> handler.sendMessage(message));
-        chatArea.append("Server: " + message + "\n");
+        String option = (String) cryptoOptions.getSelectedItem();
+        final String finalMessage = applyCrypto(message, option);  // Creare una variabile finale
+        clientHandlers.forEach(handler -> handler.sendMessage(finalMessage));  // Usa la variabile finale nella lambda
+        SwingUtilities.invokeLater(() -> chatArea.append("Server: " + finalMessage + "\n"));
         chatInput.setText("");
     }
 
-    private class ClientHandler extends Thread {
-        private Socket socket;
-        private PrintWriter out;
+    private String applyCrypto(String message, String option) {
+        switch (option) {
+            case "Caesar Encrypt":
+                return encryptCaesar(message, 3); // Example shift
+            case "Caesar Decrypt":
+                return decryptCaesar(message, 3);
+            case "Vigenère Encrypt":
+                return encryptVigenere(message, "key"); // Example key
+            case "Vigenère Decrypt":
+                return decryptVigenere(message, "key");
+            default:
+                return message; // No encryption/decryption
+        }
+    }
 
-        public ClientHandler(Socket socket) {
-            this.socket = socket;
-            try {
-                out = new PrintWriter(socket.getOutputStream(), true);
-            } catch (IOException e) {
-                e.printStackTrace();
+    private String encryptCaesar(String text, int shift) {
+        StringBuilder encrypted = new StringBuilder();
+        shift = shift % 26;
+        for (char c : text.toCharArray()) {
+            if (Character.isLetter(c)) {
+                int base = (Character.isLowerCase(c) ? 'a' : 'A');
+                encrypted.append((char) ((c - base + shift) % 26 + base));
+            } else {
+                encrypted.append(c);
             }
         }
+        return encrypted.toString();
+    }
 
-        public void sendMessage(String message) {
-            out.println(message);
-        }
+    private String decryptCaesar(String text, int shift) {
+        return encryptCaesar(text, -shift);
+    }
 
-        public void run() {
-            try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()))) {
-                String inputLine;
-                while ((inputLine = in.readLine()) != null) {
-                    chatArea.append(socket.getInetAddress().getHostAddress() + ": " + inputLine + "\n");
-                }
-            } catch (IOException e) {
-                System.out.println("Client disconnected.");
-            } finally {
-                try {
-                    socket.close();
-                    clientHandlers.remove(this);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+    private String encryptVigenere(String text, String key) {
+        StringBuilder result = new StringBuilder();
+        key = key.toLowerCase();
+        for (int i = 0, j = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (Character.isLetter(c)) {
+                result.append((char) ((c - 'a' + (key.charAt(j) - 'a')) % 26 + 'a'));
+                j = (j + 1) % key.length();
+            } else {
+                result.append(c);
             }
         }
+        return result.toString();
+    }
+
+    private String decryptVigenere(String text, String key) {
+        StringBuilder result = new StringBuilder();
+        key = key.toLowerCase();
+        for (int i = 0, j = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (Character.isLetter(c)) {
+                result.append((char) ((c - 'a' - (key.charAt(j) - 'a') + 26) % 26 + 'a'));
+                j = (j + 1) % key.length();
+            } else {
+                result.append(c);
+            }
+        }
+        return result.toString();
     }
 
     public static void main(String[] args) {
