@@ -1,65 +1,66 @@
-// Importazione dei pacchetti necessari per la creazione dell'interfaccia grafica, la gestione degli eventi,
-// la lettura/scrittura di flussi di dati e la gestione delle connessioni di rete.
-import javax.swing.*; // Importa le classi per l'interfaccia grafica Swing.
-import java.awt.*; // Importa classi per utilizzare componenti dell'interfaccia grafica.
-import java.awt.event.ActionEvent; // Importa le classi per la gestione degli eventi su componenti GUI.
-import java.io.BufferedReader; // Importa la classe per la lettura bufferizzata di stream di input.
-import java.io.IOException; // Importa la classe per la gestione delle eccezioni di I/O.
-import java.io.InputStreamReader; // Importa la classe per convertire un byte stream in un character stream.
-import java.io.PrintWriter; // Importa la classe per stampare formati di testo.
-import java.net.Socket; // Importa la classe per la creazione di socket.
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.io.*;
+import java.net.Socket;
 
-// Classe principale del client GUI che estende JFrame per fornire una interfaccia grafica.
 public class ClientGUI extends JFrame {
-    private JTextArea textArea; // Area di testo per mostrare eventi di sistema o messaggi del server.
-    private JTextArea chatArea; // Area di testo per la conversazione dell'utente.
-    private JTextField chatInput; // Campo di testo per inserire messaggi da inviare.
-    private JButton toggleConnectionButton; // Bottone per connettersi/disconnettersi dal server.
-    private Socket socket; // Socket per la connessione al server.
-    private PrintWriter out; // Strumento per inviare messaggi al server.
-    private BufferedReader in;
+    private JTextArea textArea; // Area for displaying system events or server messages.
+    private JTextArea chatArea; // Area for user chat.
+    private JTextField chatInput; // Text field for entering messages to send.
+    private JButton toggleConnectionButton; // Button to connect/disconnect from the server.
+    private JComboBox<String> cryptoOptions; // Dropdown menu for selecting encryption/decryption.
+    private Socket socket; // Socket for connecting to the server.
+    private PrintWriter out; // Tool for sending messages to the server.
+    private BufferedReader in; // Reader for receiving messages from the server.
 
-    // Costruttore della classe ClientGUI.
     public ClientGUI() {
-        super("Client Chat"); // Imposta il titolo del JFrame.
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // Operazione di default alla chiusura della finestra.
-        setSize(800, 600); // Dimensioni della finestra.
-        setLocationRelativeTo(null); // Centra la finestra sullo schermo.
-
-        // Inizializzazione delle aree di testo.
-        textArea = new JTextArea();
-        textArea.setEditable(false); // Impedisce la modifica dell'area di testo.
-        chatArea = new JTextArea();
-        chatArea.setEditable(false); // Impedisce la modifica dell'area di chat.
-
-        // Setup dello split pane per dividere le due aree di testo.
-        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(textArea), new JScrollPane(chatArea));
-        splitPane.setDividerLocation(250); // Posizione del divisore tra le due aree.
-        add(splitPane, BorderLayout.CENTER); // Aggiunge il pannello diviso al frame.
-
-        // Campo di input con ascoltatore per inviare messaggi quando si preme Enter.
-        chatInput = new JTextField();
-        chatInput.addActionListener(this::sendChatMessage); // Metodo che gestisce l'invio dei messaggi.
-
-        // Bottone per connessione/disconnessione.
-        toggleConnectionButton = new JButton("Connetti");
-        toggleConnectionButton.addActionListener(e -> toggleConnection()); // Metodo che gestisce la connessione.
-
-        // Pannello inferiore che contiene il campo di input e il bottone.
-        JPanel bottomPanel = new JPanel(new BorderLayout());
-        bottomPanel.add(chatInput, BorderLayout.CENTER);
-        bottomPanel.add(toggleConnectionButton, BorderLayout.EAST);
-        add(bottomPanel, BorderLayout.SOUTH); // Aggiunge il pannello al frame.
-
-        setVisible(true); // Rende visibile il frame.
+        super("Client Chat");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(800, 600);
+        setLocationRelativeTo(null);
+        initializeComponents();
+        setVisible(true);
     }
 
-    // Metodo per alternare la connessione e disconnessione.
-    private void toggleConnection() {
+    private void initializeComponents() {
+        textArea = new JTextArea();
+        textArea.setEditable(false);
+        JScrollPane scrollPane1 = new JScrollPane(textArea);
+
+        chatArea = new JTextArea();
+        chatArea.setEditable(false);
+        JScrollPane scrollPane2 = new JScrollPane(chatArea);
+
+        JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, scrollPane1, scrollPane2);
+        splitPane.setDividerLocation(250); // Posizione del divisore tra le due aree.
+        add(splitPane, BorderLayout.CENTER);
+
+        chatInput = new JTextField();
+        chatInput.addActionListener(this::sendChatMessage); // Send message when pressing Enter
+
+        toggleConnectionButton = new JButton("Connect");
+        toggleConnectionButton.addActionListener(this::toggleConnection);
+
+        cryptoOptions = new JComboBox<>(new String[]{
+            "Plain Text", "Caesar Encrypt", "Caesar Decrypt", "Vigenère Encrypt", "Vigenère Decrypt"
+        });
+
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.add(cryptoOptions, BorderLayout.WEST);
+        bottomPanel.add(chatInput, BorderLayout.CENTER);
+        bottomPanel.add(toggleConnectionButton, BorderLayout.EAST);
+
+        add(bottomPanel, BorderLayout.SOUTH);
+    }
+
+    private void toggleConnection(ActionEvent event) {
         if (socket == null || socket.isClosed()) {
-            connectToServer("localhost", 12345); // Tenta di connettersi se non connesso o se il socket è chiuso.
+            connectToServer("localhost", 12345);
+            toggleConnectionButton.setText("Disconnect");
         } else {
-            disconnect(); // Disconnette se il socket è già connesso.
+            disconnect();
+            toggleConnectionButton.setText("Connect");
         }
     }
 
@@ -86,7 +87,7 @@ public class ClientGUI extends JFrame {
             }
         }).start(); // Avvia il thread.
     }
-    
+
     // Metodo per disconettersi al server.
     private void disconnect() {
         if (socket != null && !socket.isClosed()) {
@@ -113,121 +114,81 @@ public class ClientGUI extends JFrame {
         }
     }
 
-    // Metodo per inviare messaggi al server.
     private void sendChatMessage(ActionEvent event) {
-        String input = chatInput.getText().trim(); // Ottiene il messaggio dal campo di input.
-        if (!input.isEmpty() && out != null) {
-            if (input.startsWith("/")) { // Controlla se il messaggio è un comando.
-                processCommand(input); // Elabora il comando.
-            } else {
-                out.println(input); // Invia il messaggio normale.
-                chatArea.append("Tu: " + input + "\n"); // Mostra il messaggio nella chat area.
-            }
-            chatInput.setText(""); // Pulisce il campo di input.
+        String message = chatInput.getText();
+        if (!message.isEmpty()) {
+            message = applyCrypto(message, (String) cryptoOptions.getSelectedItem());
+            out.println(message);
+            chatArea.append("You: " + message + "\n");
+            chatInput.setText("");
         }
     }
 
-    // Metodo per elaborare i comandi di cifratura e decifratura.
-    private void processCommand(String input) {
-        try {
-            String[] parts = input.split(" ", 3); // Divide il comando dalle sue parti.
-            String command = parts[0]; // Il comando stesso.
-            String key = parts[1]; // La chiave di cifratura.
-            String message = parts[2]; // Il messaggio da cifrare o decifrare.
-
-            switch (command.toLowerCase()) {
-                case "/cesare":
-                    message = encryptCaesar(message, Integer.parseInt(key));
-                    break;
-                case "/vigenere":
-                    message = encryptVigenere(message, key);
-                    break;
-                case "/decesare":
-                    message = decryptCaesar(message, Integer.parseInt(key));
-                    break;
-                case "/devigenere":
-                    message = decryptVigenere(message, key);
-                    break;
-                default:
-                    chatArea.append("Comando non riconosciuto.\n");
-                    return;
-            }
-            out.println(message); // Invia il messaggio cifrato/decifrato.
-            chatArea.append("Tu (" + command.substring(1) + "): " + message + "\n"); // Mostra il messaggio nella chat area.
-        } catch (Exception e) {
-            chatArea.append("Errore nel processare il comando. Assicurati di usare il formato corretto.\n");
+    private String applyCrypto(String message, String option) {
+        switch (option) {
+            case "Caesar Encrypt":
+                return encryptCaesar(message, 3);
+            case "Caesar Decrypt":
+                return decryptCaesar(message, 3);
+            case "Vigenère Encrypt":
+                return encryptVigenere(message, "key");
+            case "Vigenère Decrypt":
+                return decryptVigenere(message, "key");
+            default:
+                return message; // No encryption/decryption applied
         }
     }
 
-    // Metodo per cifrare un testo con la cifratura di Cesare.
     private String encryptCaesar(String text, int shift) {
-        shift = shift % 26 + 26; // Normalizza il valore di shift.
         StringBuilder encrypted = new StringBuilder();
-        for (char i : text.toCharArray()) {
-            if (Character.isLetter(i)) {
-                if (Character.isUpperCase(i)) {
-                    encrypted.append((char) ('A' + (i - 'A' + shift) % 26));
-                } else {
-                    encrypted.append((char) ('a' + (i - 'a' + shift) % 26));
-                }
+        for (char c : text.toCharArray()) {
+            if (Character.isLetter(c)) {
+                int base = (Character.isLowerCase(c) ? 'a' : 'A');
+                encrypted.append((char) ((c - base + shift) % 26 + base));
             } else {
-                encrypted.append(i); // Lascia inalterati i caratteri non alfabetici.
+                encrypted.append(c);
             }
         }
-        return encrypted.toString(); // Ritorna il testo cifrato.
+        return encrypted.toString();
     }
 
-    // Metodo per decifrare un testo con la cifratura di Cesare.
     private String decryptCaesar(String text, int shift) {
-        return encryptCaesar(text, -shift); // Utilizza la cifratura di Cesare con uno shift negativo per decifrare.
+        return encryptCaesar(text, -shift);
     }
 
-    // Metodo per cifrare un testo con la cifratura di Vigenère.
     private String encryptVigenere(String text, String key) {
         StringBuilder result = new StringBuilder();
-        key = key.toLowerCase(); // Normalizza la chiave a minuscolo.
+        key = key.toLowerCase();
         int j = 0;
-
         for (char c : text.toCharArray()) {
             if (Character.isLetter(c)) {
-                int shift = key.charAt(j) - 'a'; // Calcola il valore di shift basato sulla chiave.
-                if (Character.isUpperCase(c)) {
-                    result.append((char) ('A' + (c - 'A' + shift) % 26));
-                } else {
-                    result.append((char) ('a' + (c - 'a' + shift) % 26));
-                }
-                j = ++j % key.length(); // Incrementa j e lo resetta se necessario.
+                int base = (Character.isLowerCase(c) ? 'a' : 'A');
+                result.append((char) ((c - base + (key.charAt(j) - 'a')) % 26 + base));
+                j = (j + 1) % key.length();
             } else {
-                result.append(c); // Lascia inalterati i caratteri non alfabetici.
+                result.append(c);
             }
         }
-        return result.toString(); // Ritorna il testo cifrato.
+        return result.toString();
     }
 
-    // Metodo per decifrare un testo con la cifratura di Vigenère.
     private String decryptVigenere(String text, String key) {
         StringBuilder result = new StringBuilder();
-        key = key.toLowerCase(); // Normalizza la chiave a minuscolo.
+        key = key.toLowerCase();
         int j = 0;
-
         for (char c : text.toCharArray()) {
             if (Character.isLetter(c)) {
-                int shift = -(key.charAt(j) - 'a'); // Calcola il valore negativo di shift basato sulla chiave.
-                if (Character.isUpperCase(c)) {
-                    result.append((char) ('A' + (c - 'A' + shift + 26) % 26));
-                } else {
-                    result.append((char) ('a' + (c - 'a' + shift + 26) % 26));
-                }
-                j = ++j % key.length(); // Incrementa j e lo resetta se necessario.
+                int base = (Character.isLowerCase(c) ? 'a' : 'A');
+                result.append((char) ((c - base - (key.charAt(j) - 'a') + 26) % 26 + base));
+                j = (j + 1) % key.length();
             } else {
-                result.append(c); // Lascia inalterati i caratteri non alfabetici.
+                result.append(c);
             }
         }
-        return result.toString(); // Ritorna il testo decifrato.
+        return result.toString();
     }
-    
-    // Metodo principale per eseguire l'applicazione.
+
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(ClientGUI::new); // Avvia l'interfaccia grafica del client nell'Event Dispatch Thread.
+        SwingUtilities.invokeLater(ClientGUI::new);
     }
 }
