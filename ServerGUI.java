@@ -10,6 +10,7 @@ public class ServerGUI extends JFrame {
     private JTextArea textArea; // Area di testo per i log di sistema e le informazioni.
     private JTextArea chatArea; // Area di testo per la chat tra client e server.
     private JTextField chatInput; // Campo di testo per inserire messaggi da inviare ai client.
+    private JTextField keyField; // Campo per la chiave di cifratura/decifratura.
     private JButton toggleButton; // Pulsante per avviare o fermare il server.
     private JComboBox<String> cryptoOptions; // Menu a tendina per selezionare il tipo di cifratura/decifratura.
     private boolean isRunning; // Stato del server, true se in esecuzione.
@@ -39,11 +40,16 @@ public class ServerGUI extends JFrame {
 
         JPanel bottomPanel = new JPanel(new BorderLayout());
         chatInput = new JTextField();
-        chatInput.addActionListener(this::sendMessageToAllClients); // Send message on pressing Enter
+        chatInput.addActionListener(this::sendMessageToAllClients);
         bottomPanel.add(chatInput, BorderLayout.CENTER);
 
         cryptoOptions = new JComboBox<>(new String[]{"Plain Text", "Caesar Encrypt", "Caesar Decrypt", "Vigenère Encrypt", "Vigenère Decrypt"});
         bottomPanel.add(cryptoOptions, BorderLayout.WEST);
+
+        keyField = new JTextField();
+        keyField.setVisible(false);
+        cryptoOptions.addActionListener(e -> keyField.setVisible(!"Plain Text".equals(cryptoOptions.getSelectedItem())));
+        bottomPanel.add(keyField, BorderLayout.NORTH);
 
         toggleButton = new JButton("Start Server");
         toggleButton.addActionListener(this::toggleServer);
@@ -72,8 +78,8 @@ public class ServerGUI extends JFrame {
                 try {
                     while (!serverSocket.isClosed()) {
                         Socket socket = serverSocket.accept();
-                        textArea.append("Client connected: " + socket.getInetAddress().getHostAddress() + "\n");
-                        ClientHandler handler = new ClientHandler(socket);
+                        String currentKey = keyField.getText();
+                        ClientHandler handler = new ClientHandler(socket, currentKey);
                         clientHandlers.add(handler);
                         handler.start();
                     }
@@ -101,26 +107,39 @@ public class ServerGUI extends JFrame {
         String message = chatInput.getText();
         if (!message.isEmpty()) {
             String option = (String) cryptoOptions.getSelectedItem();
-            final String finalMessage = applyCrypto(message, option);  // Create a final variable to use inside the lambda
-            clientHandlers.forEach(handler -> handler.sendMessage(finalMessage));
-            chatInput.setText("");
-            chatArea.append("Server: " + finalMessage + "\n");
+            String key = keyField.getText();
+    
+            if (keyRequired(option) && key.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "A key is required for " + option, "Key Error", JOptionPane.ERROR_MESSAGE);
+            } else {
+                String finalMessage = applyCrypto(message, option, key);
+                clientHandlers.forEach(handler -> handler.sendMessage(finalMessage));
+                chatArea.append("You: " + finalMessage + "\n");
+                chatInput.setText("");
+            }
         }
     }
-    
 
-    private String applyCrypto(String message, String option) {
-        switch (option) {
-            case "Caesar Encrypt":
-                return encryptCaesar(message, 3); // Example shift
-            case "Caesar Decrypt":
-                return decryptCaesar(message, 3);
-            case "Vigenère Encrypt":
-                return encryptVigenere(message, "key"); // Example key
-            case "Vigenère Decrypt":
-                return decryptVigenere(message, "key");
-            default:
-                return message; // No encryption/decryption
+    private boolean keyRequired(String option) {
+        return option.contains("Caesar") || option.contains("Vigenère");
+    }
+    
+    private String applyCrypto(String message, String option, String key) {
+        try {
+            switch (option) {
+                case "Caesar Encrypt":
+                case "Caesar Decrypt":
+                    int shift = Integer.parseInt(key);
+                    return option.contains("Encrypt") ? encryptCaesar(message, shift) : decryptCaesar(message, shift);
+                case "Vigenère Encrypt":
+                case "Vigenère Decrypt":
+                    return option.contains("Encrypt") ? encryptVigenere(message, key) : decryptVigenere(message, key);
+                default:
+                    return message;
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Invalid key format for Caesar cipher. Please enter a valid number.", "Key Error", JOptionPane.ERROR_MESSAGE);
+            return null;
         }
     }
 
@@ -139,7 +158,7 @@ public class ServerGUI extends JFrame {
     }
 
     private String decryptCaesar(String text, int shift) {
-        return encryptCaesar(text, -shift);
+        return encryptCaesar(text, 26 - (shift % 26));
     }
 
     private String encryptVigenere(String text, String key) {
@@ -182,9 +201,11 @@ public class ServerGUI extends JFrame {
         private Socket socket;
         private PrintWriter out;
         private BufferedReader in;
+        private String key;  // Key for encryption/decryption
 
-        ClientHandler(Socket socket) {
+        ClientHandler(Socket socket, String key) {
             this.socket = socket;
+            this.key = key;
             try {
                 out = new PrintWriter(socket.getOutputStream(), true);
                 in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
@@ -197,7 +218,7 @@ public class ServerGUI extends JFrame {
             try {
                 String line;
                 while ((line = in.readLine()) != null) {
-                    String processedMessage = applyCrypto(line, (String) cryptoOptions.getSelectedItem());
+                    String processedMessage = applyCrypto(line, (String) cryptoOptions.getSelectedItem(), key);
                     for (ClientHandler client : clientHandlers) {
                         if (client != this) client.out.println(processedMessage);
                     }

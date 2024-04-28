@@ -8,6 +8,7 @@ public class ClientGUI extends JFrame {
     private JTextArea textArea; // Area for displaying system events or server messages.
     private JTextArea chatArea; // Area for user chat.
     private JTextField chatInput; // Text field for entering messages to send.
+    private JTextField keyField;
     private JButton toggleConnectionButton; // Button to connect/disconnect from the server.
     private JComboBox<String> cryptoOptions; // Dropdown menu for selecting encryption/decryption.
     private Socket socket; // Socket for connecting to the server.
@@ -38,20 +39,32 @@ public class ClientGUI extends JFrame {
 
         chatInput = new JTextField();
         chatInput.addActionListener(this::sendChatMessage); // Send message when pressing Enter
-
+        
         toggleConnectionButton = new JButton("Connect");
         toggleConnectionButton.addActionListener(this::toggleConnection);
 
         cryptoOptions = new JComboBox<>(new String[]{
             "Plain Text", "Caesar Encrypt", "Caesar Decrypt", "Vigenère Encrypt", "Vigenère Decrypt"
         });
+        cryptoOptions.addActionListener(this::updateCryptoOptions);
+
+        keyField = new JTextField(); // Campo di testo per la chiave.
+        keyField.setVisible(false); // Inizialmente nascosto.
 
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.add(cryptoOptions, BorderLayout.WEST);
         bottomPanel.add(chatInput, BorderLayout.CENTER);
         bottomPanel.add(toggleConnectionButton, BorderLayout.EAST);
+        bottomPanel.add(keyField, BorderLayout.NORTH);
 
         add(bottomPanel, BorderLayout.SOUTH);
+    }
+
+    private void updateCryptoOptions(ActionEvent event) {
+        String selected = (String) cryptoOptions.getSelectedItem();
+        boolean isKeyNeeded = selected.endsWith("Encrypt") || selected.endsWith("Decrypt");
+        keyField.setVisible(isKeyNeeded); // Mostra il campo chiave solo per le opzioni che richiedono una chiave.
+        revalidate(); // Aggiorna il layout per mostrare/nascondere il campo chiave.
     }
 
     private void toggleConnection(ActionEvent event) {
@@ -64,43 +77,32 @@ public class ClientGUI extends JFrame {
         }
     }
 
-    // Metodo per connettersi al server.
     private void connectToServer(String serverAddress, int port) {
-        new Thread(() -> { // Utilizza un thread separato per la connessione per non bloccare l'UI.
+        new Thread(() -> {
             try {
-                socket = new Socket(serverAddress, port); // Crea un nuovo socket.
-                SwingUtilities.invokeLater(() -> {
-                    textArea.append("Connesso al Server\n"); // Aggiorna l'area di testo sulla UI.
-                    toggleConnectionButton.setText("Disconnettiti"); // Cambia il testo del bottone.
-                });
-                out = new PrintWriter(socket.getOutputStream(), true); // Inizializza il PrintWriter.
-                in = new BufferedReader(new InputStreamReader(socket.getInputStream())); // Inizializza il BufferedReader.
-
-                // Ascoltatore per i messaggi in arrivo dal server.
-                String fromServer;
-                while ((fromServer = in.readLine()) != null) {
-                    final String finalFromServer = fromServer; // Crea una variabile finale per uso nella lambda
-                    SwingUtilities.invokeLater(() -> chatArea.append("Server: " + finalFromServer + "\n")); // Aggiorna la chat area nel thread dell'UI.
-                }
+                socket = new Socket(serverAddress, port);
+                out = new PrintWriter(socket.getOutputStream(), true);
+                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                receiveMessages();
             } catch (IOException e) {
-                SwingUtilities.invokeLater(() -> textArea.append("In attesa della connessione con il server...\n"));
+                SwingUtilities.invokeLater(() -> textArea.append("Unable to connect to server: " + e.getMessage() + "\n"));
+                cleanupResources(); // Clean up resources if an exception occurs
             }
-        }).start(); // Avvia il thread.
+        }).start();
     }
 
     // Metodo per disconettersi al server.
     private void disconnect() {
         if (socket != null && !socket.isClosed()) {
             try {
-                // Close the output stream
                 if (out != null) {
                     out.close();
                 }
                 // Close the socket
                 socket.close();
-                // Update UI components or state as necessary
+                // Clear UI components or state as necessary
                 SwingUtilities.invokeLater(() -> {
-                    textArea.append("Disconnected from the server.\n"); // Log to UI
+                    textArea.append("Disconnected from the server.\n");
                     toggleConnectionButton.setText("Connect"); // Change button text to "Connect"
                 });
             } catch (IOException e) {
@@ -108,8 +110,7 @@ public class ClientGUI extends JFrame {
                 SwingUtilities.invokeLater(() -> textArea.append("Error disconnecting: " + e.getMessage() + "\n"));
             } finally {
                 // Ensure resources are nullified or reset state as necessary
-                out = null;
-                socket = null;
+                cleanupResources();
             }
         }
     }
@@ -117,44 +118,113 @@ public class ClientGUI extends JFrame {
     private void sendChatMessage(ActionEvent event) {
         String message = chatInput.getText();
         if (!message.isEmpty()) {
-            message = applyCrypto(message, (String) cryptoOptions.getSelectedItem());
-            out.println(message);
-            chatArea.append("You: " + message + "\n");
+            String selectedCrypto = (String) cryptoOptions.getSelectedItem();
+            String key = keyField.getText();
+            if (keyRequired(selectedCrypto) && key.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Key is required for " + selectedCrypto, "Key Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            String encryptedMessage = applyCrypto(message, selectedCrypto, key);
+            out.println(encryptedMessage);
+            chatArea.append("You: " + encryptedMessage + "\n");
             chatInput.setText("");
         }
     }
 
-    private String applyCrypto(String message, String option) {
-        switch (option) {
-            case "Caesar Encrypt":
-                return encryptCaesar(message, 3);
-            case "Caesar Decrypt":
-                return decryptCaesar(message, 3);
-            case "Vigenère Encrypt":
-                return encryptVigenere(message, "key");
-            case "Vigenère Decrypt":
-                return decryptVigenere(message, "key");
-            default:
-                return message; // No encryption/decryption applied
+    private void receiveMessages() {
+        try {
+            String line;
+            while ((line = in.readLine()) != null) {  // Legge i messaggi in arrivo finché la connessione è attiva.
+                String finalMessage = applyDecryptionIfNeeded(line);  // Decifra il messaggio se necessario.
+                SwingUtilities.invokeLater(() -> chatArea.append("Server: " + finalMessage + "\n"));  // Mostra il messaggio nella chat area.
+            }
+        } catch (IOException e) {
+            SwingUtilities.invokeLater(() -> {
+                textArea.append("Disconnected from server: " + e.getMessage() + "\n");
+                toggleConnectionButton.setText("Connect");  // Cambia il testo del bottone in "Connect" dopo la disconnessione.
+            });
+        } finally {
+            disconnect();  // Pulisce le risorse quando il ciclo while termina.
+        }
+    }
+    
+    private String applyDecryptionIfNeeded(String message) {
+        if (shouldDecrypt()) {
+            return applyCrypto(message, (String) cryptoOptions.getSelectedItem(), keyField.getText());
+        }
+        return message;
+    }
+    
+    private boolean shouldDecrypt() {
+        String option = (String) cryptoOptions.getSelectedItem();
+        return option != null && option.endsWith("Decrypt");
+    }
+    
+    private void cleanupResources() {
+        try {
+            if (in != null) {
+                in.close();
+                in = null;
+            }
+            if (out != null) {
+                out.close();
+                out = null;
+            }
+            if (socket != null) {
+                socket.close();
+                socket = null;
+            }
+        } catch (IOException e) {
+            SwingUtilities.invokeLater(() -> textArea.append("Error cleaning up resources: " + e.getMessage() + "\n"));
+        }
+    }
+    
+    private boolean keyRequired(String option) {
+        return option.contains("Caesar") || option.contains("Vigenère");
+    }
+
+    private String applyCrypto(String message, String option, String key) {
+        try {
+            switch (option) {
+                case "Caesar Encrypt":
+                case "Caesar Decrypt":
+                    int shift = Integer.parseInt(key); // Assume that key for Caesar must be an integer
+                    return option.contains("Encrypt") ? encryptCaesar(message, shift) : decryptCaesar(message, shift);
+                case "Vigenère Encrypt":
+                case "Vigenère Decrypt":
+                    return option.contains("Encrypt") ? encryptVigenere(message, key) : decryptVigenere(message, key);
+                default:
+                    return message; // No encryption/decryption applied
+            }
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Invalid key format for Caesar cipher. Please enter a valid number.", "Key Error", JOptionPane.ERROR_MESSAGE);
+            return message; // Return the original message if the key format is wrong
         }
     }
 
+    // Metodo per cifrare un testo con la cifratura di Cesare.
     private String encryptCaesar(String text, int shift) {
+        shift = shift % 26 + 26; // Normalizza il valore di shift.
         StringBuilder encrypted = new StringBuilder();
-        for (char c : text.toCharArray()) {
-            if (Character.isLetter(c)) {
-                int base = (Character.isLowerCase(c) ? 'a' : 'A');
-                encrypted.append((char) ((c - base + shift) % 26 + base));
+        for (char i : text.toCharArray()) {
+            if (Character.isLetter(i)) {
+                if (Character.isUpperCase(i)) {
+                    encrypted.append((char) ('A' + (i - 'A' + shift) % 26));
+                } else {
+                    encrypted.append((char) ('a' + (i - 'a' + shift) % 26));
+                }
             } else {
-                encrypted.append(c);
+                encrypted.append(i); // Lascia inalterati i caratteri non alfabetici.
             }
         }
-        return encrypted.toString();
+        return encrypted.toString(); // Ritorna il testo cifrato.
     }
 
+    // Metodo per decifrare un testo con la cifratura di Cesare.
     private String decryptCaesar(String text, int shift) {
-        return encryptCaesar(text, -shift);
+        return encryptCaesar(text, -shift); // Utilizza la cifratura di Cesare con uno shift negativo per decifrare.
     }
+    
 
     private String encryptVigenere(String text, String key) {
         StringBuilder result = new StringBuilder();
