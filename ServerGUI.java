@@ -164,12 +164,12 @@ public class ServerGUI extends JFrame {
     private String encryptVigenere(String text, String key) {
         StringBuilder result = new StringBuilder();
         key = key.toLowerCase();
-        int keyIndex = 0;
+        int j = 0;
         for (char c : text.toCharArray()) {
             if (Character.isLetter(c)) {
                 int base = (Character.isLowerCase(c) ? 'a' : 'A');
-                result.append((char) ((c - base + (key.charAt(keyIndex) - 'a')) % 26 + base));
-                keyIndex = (keyIndex + 1) % key.length();
+                result.append((char) ((c - base + (key.charAt(j) - 'a')) % 26 + base));
+                j = (j + 1) % key.length();
             } else {
                 result.append(c);
             }
@@ -180,12 +180,12 @@ public class ServerGUI extends JFrame {
     private String decryptVigenere(String text, String key) {
         StringBuilder result = new StringBuilder();
         key = key.toLowerCase();
-        int keyIndex = 0;
+        int j = 0;
         for (char c : text.toCharArray()) {
             if (Character.isLetter(c)) {
                 int base = (Character.isLowerCase(c) ? 'a' : 'A');
-                result.append((char) ((c - base - (key.charAt(keyIndex) - 'a') + 26) % 26 + base));
-                keyIndex = (keyIndex + 1) % key.length();
+                result.append((char) ((c - base - (key.charAt(j) - 'a') + 26) % 26 + base));
+                j = (j + 1) % key.length();
             } else {
                 result.append(c);
             }
