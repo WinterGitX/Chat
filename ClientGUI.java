@@ -83,10 +83,14 @@ public class ClientGUI extends JFrame {
                 socket = new Socket(serverAddress, port);
                 out = new PrintWriter(socket.getOutputStream(), true);
                 in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                receiveMessages();
+                SwingUtilities.invokeLater(() -> {
+                    textArea.append("Connesso al server: " + serverAddress + ":" + port + "\n"); // Mostra la connessione nel text area
+                    toggleConnectionButton.setText("Disconnettiti");
+                });
+                receiveMessages(); // Chiama il metodo per ricevere i messaggi
             } catch (IOException e) {
-                SwingUtilities.invokeLater(() -> textArea.append("Unable to connect to server: " + e.getMessage() + "\n"));
-                cleanupResources(); // Clean up resources if an exception occurs
+                SwingUtilities.invokeLater(() -> textArea.append("Impossibile connettersi al server: " + e.getMessage() + "\n"));
+                cleanupResources(); // Pulizia delle risorse in caso di eccezione
             }
         }).start();
     }
@@ -102,12 +106,12 @@ public class ClientGUI extends JFrame {
                 socket.close();
                 // Clear UI components or state as necessary
                 SwingUtilities.invokeLater(() -> {
-                    textArea.append("Disconnected from the server.\n");
-                    toggleConnectionButton.setText("Connect"); // Change button text to "Connect"
+                    textArea.append("Disconnesso.\n");
+                    toggleConnectionButton.setText("Connetti"); // Change button text to "Connect"
                 });
             } catch (IOException e) {
                 // Log to UI or console in case of an error during disconnect
-                SwingUtilities.invokeLater(() -> textArea.append("Error disconnecting: " + e.getMessage() + "\n"));
+                SwingUtilities.invokeLater(() -> textArea.append("Errore di disconnessione: " + e.getMessage() + "\n"));
             } finally {
                 // Ensure resources are nullified or reset state as necessary
                 cleanupResources();
@@ -126,7 +130,7 @@ public class ClientGUI extends JFrame {
             }
             String encryptedMessage = applyCrypto(message, selectedCrypto, key);
             out.println(encryptedMessage);
-            chatArea.append("You: " + encryptedMessage + "\n");
+            chatArea.append("Tu: " + encryptedMessage + "\n");
             chatInput.setText("");
         }
     }
@@ -140,8 +144,8 @@ public class ClientGUI extends JFrame {
             }
         } catch (IOException e) {
             SwingUtilities.invokeLater(() -> {
-                textArea.append("Disconnected from server: " + e.getMessage() + "\n");
-                toggleConnectionButton.setText("Connect");  // Cambia il testo del bottone in "Connect" dopo la disconnessione.
+                textArea.append("Disconnesso dal server: " + e.getMessage() + "\n");
+                toggleConnectionButton.setText("Connetti");  // Cambia il testo del bottone in "Connect" dopo la disconnessione.
             });
         } finally {
             disconnect();  // Pulisce le risorse quando il ciclo while termina.
