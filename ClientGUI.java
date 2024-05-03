@@ -49,7 +49,7 @@ public class ClientGUI extends JFrame {
         cryptoOptions.addActionListener(this::updateCryptoOptions);
 
         keyField = new JTextField(); // Campo di testo per la chiave.
-        keyField.setVisible(false); // Inizialmente nascosto.
+        keyField.setVisible(true); // Sempre visibile.
 
         JPanel bottomPanel = new JPanel(new BorderLayout());
         bottomPanel.add(cryptoOptions, BorderLayout.WEST);

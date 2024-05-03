@@ -31,30 +31,29 @@ public class ServerGUI extends JFrame {
         textArea.setEditable(false);
         chatArea = new JTextArea();
         chatArea.setEditable(false);
-
+    
         JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
                                               new JScrollPane(textArea),
                                               new JScrollPane(chatArea));
         splitPane.setDividerLocation(250);
         add(splitPane, BorderLayout.CENTER);
-
+    
         JPanel bottomPanel = new JPanel(new BorderLayout());
         chatInput = new JTextField();
         chatInput.addActionListener(this::sendMessageToAllClients);
         bottomPanel.add(chatInput, BorderLayout.CENTER);
-
+    
         cryptoOptions = new JComboBox<>(new String[]{"Plain Text", "Caesar Encrypt", "Caesar Decrypt", "Vigenère Encrypt", "Vigenère Decrypt"});
         bottomPanel.add(cryptoOptions, BorderLayout.WEST);
-
+    
         keyField = new JTextField();
-        keyField.setVisible(false);
-        cryptoOptions.addActionListener(e -> keyField.setVisible(!"Plain Text".equals(cryptoOptions.getSelectedItem())));
+        keyField.setVisible(true);  // Imposta sempre visibile il campo della chiave
         bottomPanel.add(keyField, BorderLayout.NORTH);
-
+    
         toggleButton = new JButton("Start Server");
         toggleButton.addActionListener(this::toggleServer);
         bottomPanel.add(toggleButton, BorderLayout.EAST);
-
+    
         add(bottomPanel, BorderLayout.SOUTH);
     }
 
@@ -192,7 +191,6 @@ public class ServerGUI extends JFrame {
         }
         return result.toString();
     }
-
     public static void main(String[] args) {
         SwingUtilities.invokeLater(ServerGUI::new);
     }
